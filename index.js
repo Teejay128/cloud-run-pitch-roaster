@@ -550,37 +550,90 @@ function handleCreateComment(req, res) {
 app.post('/api/pitches/:id/comments', handleCreateComment);
 app.post('/api/pitch/:id/comments', handleCreateComment);
 
+/**
+ * Sanitize a Telegram `from` user object into a valid 1-20 char handle ([A-Za-z0-9_-]).
+ * @param {{ username?: string, first_name?: string, id?: number | string } | undefined} fromUser
+ * @returns {string}
+ */
+function extractTelegramHandle(fromUser) {
+  const rawCandidate =
+    fromUser?.username ||
+    fromUser?.first_name ||
+    (fromUser?.id ? `tg_${fromUser.id}` : 'tg_builder');
+
+  const cleaned = String(rawCandidate)
+    .replace(/[^A-Za-z0-9_-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '')
+    .slice(0, MAX_AUTHOR_LENGTH);
+
+  return cleaned || 'tg_builder';
+}
+
 app.post('/api/webhook/bot', async (req, res) => {
-  const { sender, message } = req.body || {};
+  const update = req.body || {};
+  const tgMessage = update.message || update.edited_message;
+
+  if (!tgMessage || !tgMessage.chat || tgMessage.chat.id === undefined) {
+    return res.status(400).json({
+      error: 'Expected a Telegram Update payload containing message.chat.id.',
+    });
+  }
+
+  const chatId = tgMessage.chat.id;
+  const rawText = typeof tgMessage.text === 'string' ? tgMessage.text.trim() : '';
+
+  // Acknowledge non-text Telegram updates (stickers, photos, etc.) with 200 so Telegram doesn't retry.
+  if (!rawText) {
+    return res.status(200).json({ ok: true });
+  }
+
+  // Handle /start or /help commands in Telegram without sending them to Gemini as startup pitches.
+  if (/^\/(start|help)(@\S+)?$/i.test(rawText)) {
+    return res.status(200).json({
+      method: 'sendMessage',
+      chat_id: chatId,
+      text: '⚡ Welcome to Pitch Arena!\n\nSend your one-line startup pitch (max 280 characters) and I will roast it with AI and broadcast it live to the Arena forum.',
+    });
+  }
+
+  // Strip optional "/pitch " or "/roast " command prefix if used in a Telegram group chat.
+  const pitchText = rawText.replace(/^\/(pitch|roast)(@\S+)?\s+/i, '').trim();
+  const handle = extractTelegramHandle(tgMessage.from);
 
   try {
     const entry = await processPitchSubmission({
-      author: sender,
-      pitch: message,
+      author: handle,
+      pitch: pitchText,
       source: 'bot',
     });
 
-    const summary = [
-      `Pitch Arena Roast (${entry.evaluation.score}/10 — ${entry.evaluation.verdict})`,
-      `Founder: ${entry.author}`,
+    const replyText = [
+      `AI Roast: ${entry.evaluation.score}/10 - ${entry.evaluation.verdict}`,
       `Category: ${entry.evaluation.category}`,
-      `Roast: ${entry.evaluation.roast}`,
-      `Revision: ${entry.revision} | AI: ${entry.evaluation.mode}`,
+      '',
+      entry.evaluation.roast,
     ].join('\n');
 
-    return res.status(200).type('text/plain; charset=utf-8').send(summary);
+    return res.status(200).json({
+      method: 'sendMessage',
+      chat_id: chatId,
+      text: replyText,
+    });
   } catch (err) {
     if (err instanceof ValidationError) {
-      return res
-        .status(400)
-        .type('text/plain; charset=utf-8')
-        .send(`Rejected: ${err.message}`);
+      return res.status(200).json({
+        method: 'sendMessage',
+        chat_id: chatId,
+        text: `Rejected: ${err.message}`,
+      });
     }
     console.error('[POST /api/webhook/bot] Unexpected error:', err);
-    return res
-      .status(500)
-      .type('text/plain; charset=utf-8')
-      .send('Pitch evaluation temporarily unavailable.');
+    return res.status(200).json({
+      method: 'sendMessage',
+      chat_id: chatId,
+      text: 'Pitch evaluation is temporarily unavailable. Please try again shortly.',
+    });
   }
 });
 

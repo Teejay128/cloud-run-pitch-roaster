@@ -314,11 +314,11 @@
           ></pre>
         </div>
 
-        <!-- Snippet 2: POST /api/webhook/bot -->
+        <!-- Snippet 2: Telegram Bot Webhook Registration -->
         <div class="space-y-2">
           <div class="flex items-center justify-between gap-2">
             <span class="text-xs font-mono font-bold uppercase tracking-wider text-zinc-700">
-              2. Messaging Bot Webhook (POST /api/webhook/bot)
+              2. Attach Telegram Bot Webhook (POST /api/webhook/bot)
             </span>
             <button
               type="button"
@@ -481,9 +481,7 @@
           `  -d '{"author":"cloudshell_hacker","pitch":"AI agent that negotiates your rent while you sleep","source":"curl"}'`;
 
         curlBotCode.textContent =
-          `curl -X POST ${origin}/api/webhook/bot \\\n` +
-          `  -H "Content-Type: application/json" \\\n` +
-          `  -d '{"sender":"telegram_builder","message":"Kubernetes for backyard chicken coops"}'`;
+          `curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook?url=${origin}/api/webhook/bot"`;
       }
 
       function updateAudienceCount(count) {

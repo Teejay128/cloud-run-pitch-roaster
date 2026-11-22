@@ -130,19 +130,19 @@ gcloud run services update-traffic pitch-arena \
 | `/api/pitches` | `GET` | Returns `{ revision, pitches }` (most recent 30 pitches, newest first, with community comments shuffled) |
 | `/api/pitch` | `POST` | Evaluates `{ author, pitch, source? }` (handle required), broadcasts `NEW_PITCH`, returns `201` JSON |
 | `/api/pitches/:id/comments` | `POST` | Adds a community roast comment `{ author, text }` under the pinned AI roast, broadcasts `NEW_COMMENT`, returns `201` JSON |
-| `/api/webhook/bot` | `POST` | Evaluates `{ sender, message }` as `source: "bot"`, broadcasts `NEW_PITCH`, returns `text/plain` summary |
+| `/api/webhook/bot` | `POST` | Native Telegram Bot webhook (`Update` payload), broadcasts `NEW_PITCH` as `source: "bot"`, replies in Telegram via `sendMessage` |
 | `/ws` | `WebSocket` | Sends `INIT` on connect, broadcasts `PRESENCE`, `NEW_PITCH`, & `NEW_COMMENT`, runs 30s ping/pong heartbeat |
 
-### Test with `curl`
+### Test REST Ingestion & Attach a Telegram Bot
 
 ```bash
 SERVICE_URL="https://YOUR-SERVICE-URL.a.run.app"
 
+# 1. Direct REST pitch submission
 curl -X POST "$SERVICE_URL/api/pitch" \
   -H "Content-Type: application/json" \
   -d '{"author":"cloudshell_hacker","pitch":"AI agent that negotiates your rent while you sleep","source":"curl"}'
 
-curl -X POST "$SERVICE_URL/api/webhook/bot" \
-  -H "Content-Type: application/json" \
-  -d '{"sender":"telegram_builder","message":"Kubernetes for backyard chicken coops"}'
+# 2. Register your Telegram @BotFather token with the webhook
+curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook?url=$SERVICE_URL/api/webhook/bot"
 ```
