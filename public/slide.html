@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Deploying Production Backends on Google Cloud Run — GDG Cloud Deck</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Space+Grotesk:wght@500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Space Grotesk"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    :root {
+      --ink: #111111;
+      --canvas: #fafafa;
+    }
+
+    body {
+      background-color: var(--canvas);
+      color: var(--ink);
+      background-image: radial-gradient(#d4d4d8 1px, transparent 1px);
+      background-size: 22px 22px;
+    }
+
+    .brutal-card {
+      background-color: #ffffff;
+      border: 2px solid var(--ink);
+      box-shadow: 7px 7px 0 0 var(--ink);
+    }
+
+    .brutal-box {
+      border: 2px solid var(--ink);
+      box-shadow: 3px 3px 0 0 var(--ink);
+      transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 160ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .brutal-box:hover {
+      transform: translate(-2px, -2px);
+      box-shadow: 5px 5px 0 0 var(--ink);
+    }
+
+    .slide-panel {
+      min-height: 74vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .slide-panel.hidden {
+      display: none;
+    }
+
+    .brutal-pill {
+      border: 2px solid var(--ink);
+      box-shadow: 2px 2px 0 0 var(--ink);
+    }
+
+    .brutal-btn {
+      border: 2px solid var(--ink);
+      box-shadow: 3px 3px 0 0 var(--ink);
+      transition: transform 90ms ease, box-shadow 90ms ease, background-color 120ms ease;
+    }
+
+    .brutal-btn:hover:not(:disabled) {
+      transform: translate(-1px, -1px);
+      box-shadow: 4px 4px 0 0 var(--ink);
+    }
+
+    .brutal-btn:active:not(:disabled) {
+      transform: translate(2px, 2px);
+      box-shadow: 1px 1px 0 0 var(--ink);
+    }
+
+    .brutal-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    @keyframes slideEnter {
+      0% {
+        opacity: 0;
+        transform: translateY(10px) scale(0.992);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes itemCascade {
+      0% {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes pipelinePulse {
+      0%, 100% {
+        transform: translateX(0);
+        opacity: 0.65;
+      }
+      50% {
+        transform: translateX(4px);
+        opacity: 1;
+      }
+    }
+
+    @keyframes hubFloat {
+      0%, 100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-4px);
+      }
+    }
+
+    .slide-active {
+      animation: slideEnter 240ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    .stagger-animate {
+      opacity: 0;
+      animation: itemCascade 320ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    .flow-arrow {
+      display: inline-block;
+      animation: pipelinePulse 1.6s ease-in-out infinite;
+    }
+
+    .hub-float {
+      animation: hubFloat 3.2s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between antialiased selection:bg-[#FFE600] selection:text-[#111111]">
+  <!-- Top Presentation Bar -->
+  <header class="border-b-2 border-[#111111] bg-[#FAFAFA]/95 backdrop-blur sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-8 py-3 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <a
+          href="/"
+          class="w-9 h-9 bg-[#FFE600] border-2 border-[#111111] shadow-[2px_2px_0_#111111] flex items-center justify-center font-mono font-bold text-base hover:bg-[#ffed38]"
+          title="Back to Live Pitch Arena"
+        >
+          ⚡
+        </a>
+        <div class="flex flex-wrap items-center gap-2.5">
+          <span class="font-bold text-base sm:text-lg tracking-tight">Pitch Arena Deck</span>
+          <span
+            id="section-pill"
+            class="px-2.5 py-0.5 text-xs font-mono font-bold bg-[#E0E7FF] border-2 border-[#111111] rounded"
+          >
+            SECTION 1 • CLOUD RUN CORE
+          </span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <a
+          href="/"
+          target="_blank"
+          rel="noopener"
+          class="hidden sm:inline-flex brutal-btn rounded-lg bg-white hover:bg-[#FFE600] px-3 py-1.5 text-xs font-mono font-bold"
+        >
+          Open Live Arena ↗
+        </a>
+        <span
+          id="slide-counter"
+          class="brutal-pill px-3 py-1 rounded-md bg-white font-mono text-xs sm:text-sm font-bold"
+        >
+          01 / 12
+        </span>
+      </div>
+    </div>
+    <!-- Progress Bar -->
+    <div class="w-full h-1.5 bg-zinc-200 border-t border-[#111111]">
+      <div
+        id="progress-bar"
+        class="h-full bg-[#FFE600] transition-all duration-200"
+        style="width: 8.33%"
+      ></div>
+    </div>
+  </header>
+
+  <!-- Main Slide Stage -->
+  <main class="flex-1 flex items-center justify-center px-4 sm:px-8 py-6 sm:py-8">
+    <div class="w-full max-w-7xl">
+      <!-- SLIDE 1: Title Slide -->
+      <section data-slide="1" data-section="SECTION 1 • CLOUD RUN CORE" class="slide-panel brutal-card rounded-2xl p-10 sm:p-16 space-y-8">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <span class="brutal-pill inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#FFE600] font-mono text-xs sm:text-sm font-bold">
+            ☁️ GDG CLOUD TECHNICAL SESSION
+          </span>
+          <span class="font-mono text-xs sm:text-sm font-bold text-zinc-500">
+            google-cloud-run // workshop
+          </span>
+        </div>
+
+        <div class="space-y-4">
+          <h1 class="text-4xl sm:text-6xl font-bold tracking-tight leading-[1.08]">
+            Deploying Production Backends on <span class="bg-[#FFE600] px-2 border-2 border-[#111111] inline-block mt-1">Google Cloud Run</span>
+          </h1>
+          <p class="text-xl sm:text-2xl font-medium text-zinc-700">
+            From Source Code to Auto-Scaling Containers
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
+          <div class="brutal-box rounded-xl bg-[#FAFAFA] p-4 space-y-1">
+            <div class="font-mono text-xs font-bold text-zinc-500">PART 01</div>
+            <div class="font-bold text-base sm:text-lg">How Cloud Run Works</div>
+            <p class="text-xs sm:text-sm text-zinc-600">Buildpacks, runtime contract, keyless ADC auth &amp; traffic splitting.</p>
+          </div>
+          <div class="brutal-box rounded-xl bg-[#FAFAFA] p-4 space-y-1">
+            <div class="font-mono text-xs font-bold text-zinc-500">PART 02</div>
+            <div class="font-bold text-base sm:text-lg">Cloud Run vs. Vercel</div>
+            <p class="text-xs sm:text-sm text-zinc-600">Container compute vs. framework decomposition &amp; decoupled APIs.</p>
+          </div>
+          <div class="brutal-box rounded-xl bg-[#FAFAFA] p-4 space-y-1">
+            <div class="font-mono text-xs font-bold text-zinc-500">PART 03</div>
+            <div class="font-bold text-base sm:text-lg">Live Pitch Arena Demo</div>
+            <p class="text-xs sm:text-sm text-zinc-600">Express + WebSockets + Vertex AI + Telegram Bot in one container.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 2: What Is Cloud Run? -->
+      <section data-slide="2" data-section="SECTION 1 • CLOUD RUN CORE" class="slide-panel hidden brutal-card rounded-2xl p-8 sm:p-12 space-y-8">
+        <div class="space-y-2">
+          <span class="font-mono text-xs font-bold uppercase tracking-wider px-2.5 py-1 bg-[#A7F3D0] border-2 border-[#111111] rounded">
+            02 • CORE CONCEPT
+          </span>
+          <h2 class="text-3xl sm:text-5xl font-bold tracking-tight">
+            What Is Google Cloud Run?
+          </h2>
+          <p class="text-lg sm:text-xl text-zinc-600">
+            Managed serverless compute that runs stateless containers directly on Google's infrastructure.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div class="brutal-box rounded-xl p-6 bg-[#FFFBEB] space-y-3">
+            <div class="w-11 h-11 rounded-lg bg-[#FFE600] border-2 border-[#111111] flex items-center justify-center font-mono font-bold text-xl">
+              📦
+            </div>
+            <h3 class="text-xl font-bold">Any Language or Binary</h3>
+            <p class="text-sm sm:text-base text-zinc-700 leading-relaxed">
+              Package Node.js, Python, Go, Rust, Java, or custom Linux binaries into a container. If it listens on a port, it runs on Cloud Run.
+            </p>
+          </div>
+
+          <div class="brutal-box rounded-xl p-6 bg-[#ECFDF5] space-y-3">
+            <div class="w-11 h-11 rounded-lg bg-[#A7F3D0] border-2 border-[#111111] flex items-center justify-center font-mono font-bold text-xl">
+              📉
+            </div>
+            <h3 class="text-xl font-bold">Scales 0 → N Instantly</h3>
+            <p class="text-sm sm:text-base text-zinc-700 leading-relaxed">
+              Scales out to hundreds of instances on traffic spikes and <strong>scales down to zero</strong> when idle so you pay nothing for unused capacity.
+            </p>
+          </div>
+
+          <div class="brutal-box rounded-xl p-6 bg-[#EEF2FF] space-y-3">
+            <div class="w-11 h-11 rounded-lg bg-[#C7D2FE] border-2 border-[#111111] flex items-center justify-center font-mono font-bold text-xl">
+              🔒
+            </div>
+            <h3 class="text-xl font-bold">Zero Infra Ops</h3>
+            <p class="text-sm sm:text-base text-zinc-700 leading-relaxed">
+              Automatic TLS certificates, global load balancing, health checks, and IAM-secured service-to-service networking out of the box.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 3: Source-to-URL Pipeline -->
+      <section data-slide="3" data-section="SECTION 1 • CLOUD RUN CORE" class="slide-panel hidden brutal-card rounded-2xl p-8 sm:p-12 space-y-7">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="space-y-1">
+            <span class="font-mono text-xs font-bold uppercase tracking-wider px-2.5 py-1 bg-[#FFE600] border-2 border-[#111111] rounded">
+              03 • DEPLOYMENT PIPELINE
+            </span>
+            <h2 class="text-3xl sm:text-4xl font-bold tracking-tight pt-1">
+              Under the Hood: <code class="font-mono text-2xl sm:text-3xl bg-zinc-100 px-2 py-0.5 border-2 border-[#111111] rounded">gcloud run deploy --source .</code>
+            </h2>
+          </div>
+        </div>
+
+        <!-- Two Pipeline Paths -->
+        <div class="space-y-5">
+          <!-- Path 1: Buildpacks -->
+          <div class="brutal-box rounded-xl p-5 bg-[#ECFDF5] space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <span class="font-mono text-xs sm:text-sm font-bold px-2.5 py-0.5 bg-[#A7F3D0] border-2 border-[#111111] rounded">
+                PATH A • ZERO-DOCKERFILE (GOOGLE CLOUD BUILDPACKS)
+              </span>
+              <span class="font-mono text-xs font-bold text-emerald-900">Used by Pitch Arena</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-center font-mono text-xs sm:text-sm">
+              <div class="brutal-box rounded-lg bg-white p-3.5">
+                <div class="flex items-center justify-between font-bold text-[#111111]">
+                  <span>1. Source Code</span>
+                  <span class="flow-arrow text-emerald-700">→</span>
+                </div>
+                <div class="text-zinc-600 mt-1">Reads <code>package.json</code> &amp; <code>engines.node</code></div>
+              </div>
+              <div class="brutal-box rounded-lg bg-white p-3.5">
+                <div class="flex items-center justify-between font-bold text-[#111111]">
+                  <span>2. Cloud Build</span>
+                  <span class="flow-arrow text-emerald-700">→</span>
+                </div>
+                <div class="text-zinc-600 mt-1">Buildpacks install deps &amp; set <code>npm start</code></div>
+              </div>
+              <div class="brutal-box rounded-lg bg-white p-3.5">
+                <div class="flex items-center justify-between font-bold text-[#111111]">
+                  <span>3. Artifact Registry</span>
+                  <span class="flow-arrow text-emerald-700">→</span>
+                </div>
+                <div class="text-zinc-600 mt-1">Stores immutable OCI container image</div>
+              </div>
+              <div class="brutal-box rounded-lg bg-[#FFE600] p-3.5">
+                <div class="flex items-center justify-between font-bold text-[#111111]">
+                  <span>4. Cloud Run URL</span>
+                  <span>⚡</span>
+                </div>
+                <div class="text-zinc-800 mt-1">Provisions revision &amp; routes HTTPS</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Path 2: Custom Dockerfile -->
+          <div class="brutal-box rounded-xl p-5 bg-[#FAFAFA] space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <span class="font-mono text-xs sm:text-sm font-bold px-2.5 py-0.5 bg-zinc-200 border-2 border-[#111111] rounded">
+                PATH B • CUSTOM DOCKERFILE
+              </span>
+              <span class="font-mono text-xs text-zinc-600">When you need OS-level control</span>
+            </div>
+            <p class="text-sm sm:text-base text-zinc-700">
+              Drop a <code class="font-mono font-bold">Dockerfile</code> in the root whenever you need system packages (<code class="font-mono">ffmpeg</code>, <code class="font-mono">chromium</code>, <code class="font-mono">apt-get</code>), custom multi-stage Rust/Go compilation, or non-standard base images. The same <code class="font-mono font-bold">gcloud run deploy --source .</code> command builds it automatically.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 4: The Cloud Run Runtime Contract -->
+      <section data-slide="4" data-section="SECTION 1 • CLOUD RUN CORE" class="slide-panel hidden brutal-card rounded-2xl p-8 sm:p-12 space-y-7">
+        <div class="space-y-1">
+          <span class="font-mono text-xs font-bold uppercase tracking-wider px-2.5 py-1 bg-[#E0E7FF] border-2 border-[#111111] rounded">
+            04 • CONTAINER CONTRACT
+          </span>
+          <h2 class="text-3xl sm:text-5xl font-bold tracking-tight pt-1">
+            The Cloud Run Runtime Contract
+          </h2>
+          <p class="text-base sm:text-lg text-zinc-600">
+            Three rules every production container must follow to pass health checks and scale cleanly.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div class="brutal-box rounded-xl p-5 bg-white space-y-3">
+            <div class="font-mono text-xs font-bold px-2 py-0.5 bg-[#FFE600] border border-[#111111] rounded inline-block">
+              RULE 01 • NETWORKING
+            </div>
+            <h3 class="text-xl font-bold">Listen on <code class="font-mono">0.0.0.0:$PORT</code></h3>
+            <p class="text-sm text-zinc-700">
+              Cloud Run terminates HTTPS at Google's edge and forwards traffic to <code class="font-mono">$PORT</code> (default <code class="font-mono">8080</code>). Binding to <code class="font-mono">127.0.0.1</code> will fail startup probes.
+            </p>
+            <pre class="rounded-lg bg-[#18181B] text-emerald-300 p-3 text-xs font-mono overflow-x-auto">const PORT = process.env.PORT || 8080;
+server.listen(PORT, '0.0.0.0');</pre>
+          </div>
+
+          <div class="brutal-box rounded-xl p-5 bg-white space-y-3">
+            <div class="font-mono text-xs font-bold px-2 py-0.5 bg-[#A7F3D0] border border-[#111111] rounded inline-block">
+              RULE 02 • STATE
+            </div>
+            <h3 class="text-xl font-bold">Stateless &amp; Ephemeral</h3>
+            <p class="text-sm text-zinc-700">
+              Container filesystem writes live in RAM and vanish when instances scale down. Store durable data in Cloud SQL, Firestore, or Memorystore.
+            </p>
+            <pre class="rounded-lg bg-[#18181B] text-sky-300 p-3 text-xs font-mono overflow-x-auto">// Workshop demo store:
+// Capped 30-item rolling array
+const pitches = [];</pre>
+          </div>
+
+          <div class="brutal-box rounded-xl p-5 bg-white space-y-3">
+            <div class="font-mono text-xs font-bold px-2 py-0.5 bg-rose-200 border border-[#111111] rounded inline-block">
+              RULE 03 • LIFECYCLE
+            </div>
+            <h3 class="text-xl font-bold">Handle <code class="font-mono">SIGTERM</code> Cleanly</h3>
+            <p class="text-sm text-zinc-700">
+              Before scaling down an instance, Cloud Run sends <code class="font-mono">SIGTERM</code> (10s window). Close active WebSockets and flush in-flight requests.
+            </p>
+            <pre class="rounded-lg bg-[#18181B] text-amber-300 p-3 text-xs font-mono overflow-x-auto">process.on('SIGTERM', () =&gt; {
+  client.close(1001);
+  server.close();
+});</pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 5: Keyless Auth & Traffic Splitting -->
+      <section data-slide="5" data-section="SECTION 1 • CLOUD RUN CORE" class="slide-panel hidden brutal-card rounded-2xl p-8 sm:p-12 space-y-7">
+        <div class="space-y-1">
+          <span class="font-mono text-xs font-bold uppercase tracking-wider px-2.5 py-1 bg-[#FFE600] border-2 border-[#111111] rounded">
+            05 • SECURITY &amp; REVISIONS
+          </span>
+          <h2 class="text-3xl sm:text-5xl font-bold tracking-tight pt-1">
+            Keyless Cloud Auth &amp; Traffic Splitting
+          </h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Keyless ADC -->
+          <div class="brutal-box rounded-xl p-6 bg-[#ECFDF5] space-y-4">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-xs font-bold px-2.5 py-1 bg-white border-2 border-[#111111] rounded">
+                APPLICATION DEFAULT CREDENTIALS (ADC)
+              </span>
+              <span class="text-xl">🔑</span>
+            </div>
+            <h3 class="text-2xl font-bold">Zero Hardcoded API Keys</h3>
+            <p class="text-sm sm:text-base text-zinc-700 leading-relaxed">
+              Every Cloud Run revision runs with a dedicated <strong>IAM Service Account</strong> via the local metadata server. SDKs like <code class="font-mono font-bold">@google/genai</code> authenticate to <strong>Vertex AI</strong> automatically—no API key files or leaked secrets.
+            </p>
+            <pre class="rounded-lg border-2 border-[#111111] bg-[#18181B] text-emerald-300 p-3.5 text-xs font-mono overflow-x-auto">const ai = new GoogleGenAI({
+  vertexai: true,
+  project: process.env.GOOGLE_CLOUD_PROJECT,
+  location: 'global',
+});</pre>
+          </div>
+
+          <!-- Revisions & Canary Splitting -->
+          <div class="brutal-box rounded-xl p-6 bg-[#EEF2FF] space-y-4">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-xs font-bold px-2.5 py-1 bg-white border-2 border-[#111111] rounded">
+                IMMUTABLE REVISIONS (K_REVISION)
+              </span>
+              <span class="text-xl">🔀</span>
+            </div>
+            <h3 class="text-2xl font-bold">Instant Rollbacks &amp; 50/50 Canaries</h3>
+            <p class="text-sm sm:text-base text-zinc-700 leading-relaxed">
+              Every deploy creates an immutable revision and injects <code class="font-mono font-bold">process.env.K_REVISION</code>. Split live audience traffic 50/50 between two AI personas or roll back a bad release in one command.
+            </p>
+            <div class="brutal-box rounded-lg bg-white p-3.5 space-y-2.5 font-mono text-xs">
+              <div class="flex justify-between font-bold">
+                <span>pitch-arena-00001 (Ruthless VC)</span>
+                <span id="split-label-a">50% Traffic</span>
+              </div>
+              <div class="w-full h-3.5 rounded border border-[#111111] overflow-hidden flex bg-zinc-100">
+                <div id="split-bar-a" class="bg-[#FFE600] border-r border-[#111111] transition-all duration-500 ease-out" style="width: 50%"></div>
+                <div id="split-bar-b" class="bg-[#A7F3D0] transition-all duration-500 ease-out" style="width: 50%"></div>
+              </div>
+              <div class="flex items-center justify-between gap-2">
+                <span class="font-bold text-emerald-900">pitch-arena-00002 (YC Optimist)</span>
+                <span id="split-label-b" class="font-bold text-emerald-900">50% Traffic</span>
+              </div>
+              <div class="flex items-center gap-1.5 pt-1 border-t border-zinc-200">
+                <span class="text-[11px] text-zinc-500 mr-1">Simulate Split:</span>
+                <button type="button" data-split="100" class="split-btn px-2 py-0.5 border border-[#111111] rounded bg-zinc-100 hover:bg-[#FFE600] font-bold cursor-pointer">100 / 0</button>
+                <button type="button" data-split="50" class="split-btn px-2 py-0.5 border border-[#111111] rounded bg-[#FFE600] font-bold cursor-pointer">50 / 50</button>
+                <button type="button" data-split="20" class="split-btn px-2 py-0.5 border border-[#111111] rounded bg-zinc-100 hover:bg-[#FFE600] font-bold cursor-pointer">20 / 80</button>
+                <button type="button" data-split="0" class="split-btn px-2 py-0.5 border border-[#111111] rounded bg-zinc-100 hover:bg-[#FFE600] font-bold cursor-pointer">0 / 100</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 6: Cloud Run vs Vercel Showdown -->
+      <section data-slide="6" data-section="SECTION 2 • CLOUD RUN VS. VERCEL" class="slide-panel hidden brutal-card rounded-2xl p-8 sm:p-12 space-y-7">
+        <div class="space-y-1">
+          <span class="font-mono text-xs font-bold uppercase tracking-wider px-2.5 py-1 bg-amber-200 border-2 border-[#111111] rounded">
+            06 • ARCHITECTURAL SHOWDOWN
+          </span>
+          <h2 class="text-3xl sm:text-5xl font-bold tracking-tight pt-1">
+            Google Cloud Run vs. Vercel
+          </h2>
+          <p class="text-base sm:text-lg text-zinc-600">
+            They solve different layers of the stack: container-centric backend compute vs. framework-decomposed frontend hosting.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="brutal-box rounded-xl p-6 bg-[#FAFAFA] space-y-3">
+            <div class="font-mono text-xs font-bold px-2.5 py-1 bg-zinc-200 border-2 border-[#111111] rounded inline-block">
+              VERCEL • FRAMEWORK-DECOMPOSED HOSTING
+            </div>
+            <h3 class="text-2xl font-bold">Built for Frontend Velocity</h3>
+            <ul class="space-y-2.5 text-sm sm:text-base text-zinc-700">
+              <li>• Splits Next.js / React apps at build time into static Edge CDN assets + short-lived serverless functions.</li>
+              <li>• Zero-config Git PR previews and global static asset distribution.</li>
+              <li>• <strong>Trade-off:</strong> Stateless per-request functions cannot hold persistent WebSocket hubs, long-running background workers, or custom OS binaries.</li>
+            </ul>
+          </div>
+
+          <div class="brutal-box rounded-xl p-6 bg-[#FFFBEB] space-y-3">
+            <div class="font-mono text-xs font-bold px-2.5 py-1 bg-[#FFE600] border-2 border-[#111111] rounded inline-block">
+              CLOUD RUN • CONTAINER-CENTRIC COMPUTE
+            </div>
+            <h3 class="text-2xl font-bold">Built for Production Backends</h3>
+            <ul class="space-y-2.5 text-sm sm:text-base text-zinc-700">
+              <li>• Runs a real Linux container process that stays warm across hundreds of concurrent requests.</li>
+              <li>• Native WebSockets, gRPC, custom <code class="font-mono">apt</code> binaries, and up to <strong>60-minute</strong> request timeouts.</li>
+              <li>• Direct VPC and keyless IAM access to Vertex AI, Cloud SQL, Pub/Sub, and BigQuery.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 7: Side-by-Side Comparison Matrix -->
+      <section data-slide="7" data-section="SECTION 2 • CLOUD RUN VS. VERCEL" class="slide-panel hidden brutal-card rounded-2xl p-8 sm:p-11 space-y-5">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <span class="font-mono text-xs font-bold uppercase tracking-wider px-2.5 py-1 bg-amber-200 border-2 border-[#111111] rounded">
+              07 • COMPARISON MATRIX
+            </span>
+            <h2 class="text-2xl sm:text-4xl font-bold tracking-tight pt-1">
+              Side-by-Side Capability Matrix
+            </h2>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto brutal-box rounded-xl">
+          <table class="w-full text-left border-collapse text-xs sm:text-sm">
+            <thead>
+              <tr class="bg-[#111111] text-white font-mono">
+                <th class="p-3.5 border-r border-zinc-700">Dimension</th>
+                <th class="p-3.5 border-r border-zinc-700 text-[#FFE600]">Google Cloud Run</th>
+                <th class="p-3.5">Vercel</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y-2 divide-[#111111] bg-white">
+              <tr>
+                <td class="p-3.5 font-mono font-bold bg-zinc-50 border-r-2 border-[#111111]">Unit of Deployment</td>
+                <td class="p-3.5 font-medium border-r-2 border-[#111111] bg-[#FFFBEB]">Full OCI Container Image (Buildpacks or Dockerfile)</td>
+                <td class="p-3.5 text-zinc-700">Framework build output (CDN assets + serverless functions)</td>
+              </tr>
+              <tr>
+                <td class="p-3.5 font-mono font-bold bg-zinc-50 border-r-2 border-[#111111]">Runtime &amp; OS Control</td>
+                <td class="p-3.5 font-medium border-r-2 border-[#111111] bg-[#FFFBEB]">Any language, any binary, custom Linux packages</td>
+                <td class="p-3.5 text-zinc-700">Supported Node/Python/Edge runtimes &amp; bundle size limits</td>
+              </tr>
+              <tr>
+                <td class="p-3.5 font-mono font-bold bg-zinc-50 border-r-2 border-[#111111]">Connections &amp; Timeouts</td>
+                <td class="p-3.5 font-medium border-r-2 border-[#111111] bg-[#FFFBEB]">Persistent WebSockets, gRPC, HTTP/2, up to 60-min timeout</td>
+                <td class="p-3.5 text-zinc-700">Short-lived HTTP / SSR streaming functions (no stateful WS server)</td>
+              </tr>
+              <tr>
+                <td class="p-3.5 font-mono font-bold bg-zinc-50 border-r-2 border-[#111111]">Concurrency Model</td>
+                <td class="p-3.5 font-medium border-r-2 border-[#111111] bg-[#FFFBEB]">Up to 1,000 concurrent requests per container instance</td>
+                <td class="p-3.5 text-zinc-700">Per-invocation function concurrency</td>
+              </tr>
+              <tr>
+                <td class="p-3.5 font-mono font-bold bg-zinc-50 border-r-2 border-[#111111]">Best Fit</td>
+                <td class="p-3.5 font-medium border-r-2 border-[#111111] bg-[#FFFBEB]">Decoupled APIs, AI/ML backends, real-time WebSocket hubs</td>
+                <td class="p-3.5 text-zinc-700">Next.js/React frontends, marketing &amp; SSR web apps</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="rounded-lg border-2 border-[#111111] bg-[#E0E7FF] px-4 py-2.5 text-xs sm:text-sm font-medium">
+          <strong>Google Cloud Counterpart Note:</strong> For pure frontend &amp; SSR framework hosting (Vercel's sweet spot), Google Cloud provides <strong>Firebase Hosting</strong> and <strong>Firebase App Hosting</strong>—which pair directly with a Cloud Run backend API.
+        </div>
+      </section>
+
+      <!-- SLIDE 8: The Production Pattern: Decoupled Backends -->
+      <section data-slide="8" data-section="SECTION 2 • CLOUD RUN VS. VERCEL" class="slide-panel hidden brutal-card rounded-2xl p-8 sm:p-12 space-y-7">
+        <div class="space-y-1">
+          <span class="font-mono text-xs font-bold uppercase tracking-wider px-2.5 py-1 bg-amber-200 border-2 border-[#111111] rounded">
+            08 • ARCHITECTURE PATTERN
+          </span>
+          <h2 class="text-3xl sm:text-5xl font-bold tracking-tight pt-1">
+            Why Decoupled Container APIs Win
+          </h2>
+          <p class="text-base sm:text-lg text-zinc-600">
+            When your backend lives inside frontend page routes, only your web UI can use it cleanly. A standalone Cloud Run API serves every client simultaneously.
+          </p>
+        </div>
+
+        <!-- Hub Diagram -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5 items-center">
+          <!-- Left: Multi-Clients -->
+          <div class="space-y-3">
+            <div class="brutal-box rounded-xl p-3.5 bg-sky-100 font-mono text-xs sm:text-sm">
+              <div class="font-bold">1. Web Frontend</div>
+              <div class="text-zinc-700">Browser UI (<code>POST /api/pitch</code> + <code>WS /ws</code>)</div>
+            </div>
+            <div class="brutal-box rounded-xl p-3.5 bg-amber-100 font-mono text-xs sm:text-sm">
+              <div class="font-bold">2. CLI / REST Clients</div>
+              <div class="text-zinc-700"><code>curl</code>, Postman, Mobile Apps (<code>/api/pitches</code>)</div>
+            </div>
+            <div class="brutal-box rounded-xl p-3.5 bg-emerald-100 font-mono text-xs sm:text-sm">
+              <div class="font-bold">3. Messaging Bots</div>
+              <div class="text-zinc-700">Telegram Bot Webhook (<code>/api/webhook/bot</code>)</div>
+            </div>
+          </div>
+
+          <!-- Center: Cloud Run Container -->
+          <div class="hub-float brutal-box rounded-2xl p-6 bg-[#FFE600] text-center space-y-2">
+            <div class="font-mono text-xs font-bold uppercase tracking-wider bg-white px-2.5 py-0.5 border border-[#111111] rounded inline-block">
+              SINGLE CLOUD RUN CONTAINER
+            </div>
+            <div class="text-2xl font-bold">Pitch Arena API</div>
+            <div class="text-xs font-mono text-zinc-800 space-y-1 pt-1">
+              <div>Express HTTP Server (:8080)</div>
+              <div>+ WebSocket Broadcast Hub (/ws)</div>
+              <div>+ @google/genai Evaluation Pipeline</div>
+            </div>
+          </div>
+
+          <!-- Right: Outputs -->
+          <div class="space-y-3">
+            <div class="brutal-box rounded-xl p-4 bg-[#EEF2FF] space-y-1">
+              <div class="font-mono text-xs font-bold">VERTEX AI (GEMINI 3.8 FLASH)</div>
+              <p class="text-xs sm:text-sm text-zinc-700">Structured JSON evaluation (score, verdict, roast, category) via keyless ADC.</p>
+            </div>
+            <div class="brutal-box rounded-xl p-4 bg-[#ECFDF5] space-y-1">
+              <div class="font-mono text-xs font-bold">REAL-TIME FAN-OUT</div>
+              <p class="text-xs sm:text-sm text-zinc-700">Every submission from Web, CLI, or Telegram broadcasts live to all screens in &lt;50ms.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 9: Inside Our Repository -->
+      <section data-slide="9" data-section="SECTION 3 • PITCH ARENA ARCHITECTURE" class="slide-panel hidden brutal-card rounded-2xl p-8 sm:p-11 space-y-6">
+        <div class="space-y-1">
+          <span class="font-mono text-xs font-bold uppercase tracking-wider px-2.5 py-1 bg-[#A7F3D0] border-2 border-[#111111] rounded">
+            09 • INSIDE THIS REPOSITORY
+          </span>
+          <h2 class="text-3xl sm:text-4xl font-bold tracking-tight pt-1">
+            Anatomy of the Pitch Arena Codebase
+          </h2>
+          <p class="text-sm sm:text-base text-zinc-600">
+            Zero-build Node.js ES Modules repository (<code class="font-mono">express</code>, <code class="font-mono">ws</code>, <code class="font-mono">@google/genai</code>)—containerized automatically by Cloud Buildpacks.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
+          <!-- File Tree -->
+          <div class="md:col-span-4 brutal-box rounded-xl bg-[#18181B] text-zinc-100 p-5 font-mono text-xs sm:text-sm space-y-2">
+            <div class="text-[#FFE600] font-bold">cloud-run-pitch-roaster/</div>
+            <div>├── package.json</div>
+            <div>├── index.js</div>
+            <div>├── public/</div>
+            <div>│   ├── index.html</div>
+            <div>│   └── slide.html</div>
+            <div>├── .env.example</div>
+            <div>└── .dockerignore</div>
+            <div class="pt-3 border-t border-zinc-700 text-xs text-emerald-300">
+              No Dockerfile needed.<br />
+              No build step required.
+            </div>
+          </div>
+
+          <!-- Endpoints Implemented -->
+          <div class="md:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs sm:text-sm">
+            <div class="brutal-box rounded-xl p-4 bg-white space-y-1">
+              <div class="font-mono font-bold text-emerald-800">GET /api/pitches &amp; POST /api/pitches</div>
+              <p class="text-zinc-700">Mini REST API to read pitches (<code class="font-mono">?limit=</code>, <code class="font-mono">?author=</code>) and submit new pitches with handle validation.</p>
+            </div>
+            <div class="brutal-box rounded-xl p-4 bg-white space-y-1">
+              <div class="font-mono font-bold text-indigo-800">POST /api/pitches/:id/comments</div>
+              <p class="text-zinc-700">Live Roast Forum: pitch submitters unlock commenting; AI roast stays pinned first while community roasts shuffle on refresh.</p>
+            </div>
+            <div class="brutal-box rounded-xl p-4 bg-white space-y-1">
+              <div class="font-mono font-bold text-sky-800">POST /api/webhook/bot</div>
+              <p class="text-zinc-700">Native Telegram Bot webhook (<code class="font-mono">Update</code> payload) that replies in Telegram with the AI roast + public site link.</p>
+            </div>
+            <div class="brutal-box rounded-xl p-4 bg-white space-y-1">
+              <div class="font-mono font-bold text-amber-800">WS /ws + GET /health</div>
+              <p class="text-zinc-700">Real-time <code class="font-mono">INIT</code>, <code class="font-mono">PRESENCE</code>, <code class="font-mono">NEW_PITCH</code>, &amp; <code class="font-mono">NEW_COMMENT</code> events + 30s ping/pong heartbeat.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 10: Gemini & Vertex AI Pipeline in index.js -->
+      <section data-slide="10" data-section="SECTION 3 • PITCH ARENA ARCHITECTURE" class="slide-panel hidden brutal-card rounded-2xl p-8 sm:p-11 space-y-6">
+        <div class="space-y-1">
+          <span class="font-mono text-xs font-bold uppercase tracking-wider px-2.5 py-1 bg-[#A7F3D0] border-2 border-[#111111] rounded">
+            10 • AI EVALUATION PIPELINE
+          </span>
+          <h2 class="text-3xl sm:text-4xl font-bold tracking-tight pt-1">
+            Structured Gemini Output &amp; Zero-Config Fallback
+          </h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="brutal-box rounded-xl bg-[#18181B] text-emerald-300 p-5 font-mono text-xs leading-relaxed overflow-x-auto">
+<pre>// index.js — Structured Output Schema
+const response = await ai.models.generateContent({
+  model: process.env.GEMINI_MODEL || 'gemini-3.8-flash',
+  contents: `Founder: ${author}\nStartup Pitch: "${pitch}"`,
+  config: {
+    systemInstruction: `You are a ${AI_PERSONA}...`,
+    responseMimeType: 'application/json',
+    responseSchema: {
+      type: Type.OBJECT,
+      properties: {
+        score:    { type: Type.INTEGER, minimum: 1, maximum: 10 },
+        verdict:  { type: Type.STRING },
+        roast:    { type: Type.STRING },
+        category: { type: Type.STRING },
+      },
+      required: ['score', 'verdict', 'roast', 'category'],
+    },
+  },
+});</pre>
+          </div>
+
+          <div class="space-y-4">
+            <div class="brutal-box rounded-xl p-4 bg-[#FFFBEB] space-y-1">
+              <div class="font-mono text-xs font-bold">1. GUARANTEED JSON CONTRACT</div>
+              <p class="text-sm text-zinc-700">
+                <code class="font-mono">responseSchema</code> forces Gemini to return a typed <code class="font-mono">1–10</code> score, verdict badge, category tag, and roast—ready for UI cards and Telegram replies.
+              </p>
+            </div>
+            <div class="brutal-box rounded-xl p-4 bg-[#ECFDF5] space-y-1">
+              <div class="font-mono text-xs font-bold">2. DUAL AUTH: VERTEX AI OR API KEY</div>
+              <p class="text-sm text-zinc-700">
+                Uses Vertex AI via Cloud Run's service account when <code class="font-mono">GOOGLE_GENAI_USE_VERTEXAI=true</code>, or falls back to <code class="font-mono">GEMINI_API_KEY</code>.
+              </p>
+            </div>
+            <div class="brutal-box rounded-xl p-4 bg-[#EEF2FF] space-y-1">
+              <div class="font-mono text-xs font-bold">3. RESILIENT WORKSHOP MOCK MODE</div>
+              <p class="text-sm text-zinc-700">
+                If credentials aren't attached yet on a fresh deploy, <code class="font-mono">generateMockEvaluation()</code> returns realistic mock roasts (<code class="font-mono">mode: "mock"</code>) instead of throwing <code class="font-mono">500</code> errors.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 11: Why This Codebase Belongs on Cloud Run -->
+      <section data-slide="11" data-section="SECTION 3 • PITCH ARENA ARCHITECTURE" class="slide-panel hidden brutal-card rounded-2xl p-8 sm:p-12 space-y-7">
+        <div class="space-y-1">
+          <span class="font-mono text-xs font-bold uppercase tracking-wider px-2.5 py-1 bg-[#A7F3D0] border-2 border-[#111111] rounded">
+            11 • ARCHITECTURAL FIT
+          </span>
+          <h2 class="text-3xl sm:text-5xl font-bold tracking-tight pt-1">
+            Why Pitch Arena Belongs on Cloud Run
+          </h2>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div class="brutal-box rounded-xl p-5 bg-white space-y-2">
+            <div class="font-mono text-xs font-bold px-2 py-0.5 bg-[#FFE600] border border-[#111111] rounded inline-block">
+              01 • REST + WEBSOCKETS ON ONE PORT
+            </div>
+            <h3 class="text-lg sm:text-xl font-bold">Unified HTTP &amp; <code class="font-mono">/ws</code> Server</h3>
+            <p class="text-sm text-zinc-700">
+              Express and <code class="font-mono">WebSocketServer</code> share one Node HTTP server on <code class="font-mono">0.0.0.0:8080</code>. With <code class="font-mono">--timeout=3600</code> and our 30s heartbeat, audience sockets stay connected for the entire session.
+            </p>
+          </div>
+
+          <div class="brutal-box rounded-xl p-5 bg-white space-y-2">
+            <div class="font-mono text-xs font-bold px-2 py-0.5 bg-[#A7F3D0] border border-[#111111] rounded inline-block">
+              02 • HIGH CONTAINER CONCURRENCY
+            </div>
+            <h3 class="text-lg sm:text-xl font-bold">500 Concurrent Sockets per Instance</h3>
+            <p class="text-sm text-zinc-700">
+              Setting <code class="font-mono">--concurrency=500</code> and <code class="font-mono">--session-affinity</code> lets a single container hold the live audience room in memory and broadcast <code class="font-mono">NEW_PITCH</code> &amp; <code class="font-mono">NEW_COMMENT</code> events instantly.
+            </p>
+          </div>
+
+          <div class="brutal-box rounded-xl p-5 bg-white space-y-2">
+            <div class="font-mono text-xs font-bold px-2 py-0.5 bg-[#E0E7FF] border border-[#111111] rounded inline-block">
+              03 • KEYLESS VERTEX AI + TELEGRAM WEBHOOK
+            </div>
+            <h3 class="text-lg sm:text-xl font-bold">Public HTTPS Ingress + IAM Identity</h3>
+            <p class="text-sm text-zinc-700">
+              Cloud Run gives Telegram an instant <code class="font-mono">https://*.run.app/api/webhook/bot</code> endpoint while authenticating outbound calls to Vertex AI using GCP credits via ADC.
+            </p>
+          </div>
+
+          <div class="brutal-box rounded-xl p-5 bg-white space-y-2">
+            <div class="font-mono text-xs font-bold px-2 py-0.5 bg-amber-200 border border-[#111111] rounded inline-block">
+              04 • LIVE CANARY PERSONA SPLITTING
+            </div>
+            <h3 class="text-lg sm:text-xl font-bold">Configurable <code class="font-mono">AI_PERSONA</code> per Revision</h3>
+            <p class="text-sm text-zinc-700">
+              Changing <code class="font-mono">AI_PERSONA</code> in a new revision lets us split traffic 50/50 between a ruthless Silicon Valley VC and an optimistic YC mentor with zero code changes.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 12: Live Workshop Runbook -->
+      <section data-slide="12" data-section="SECTION 3 • LIVE WORKSHOP RUNBOOK" class="slide-panel hidden brutal-card rounded-2xl p-8 sm:p-11 space-y-5">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <span class="font-mono text-xs font-bold uppercase tracking-wider px-2.5 py-1 bg-[#FFE600] border-2 border-[#111111] rounded">
+              12 • HANDS-ON RUNBOOK
+            </span>
+            <h2 class="text-2xl sm:text-4xl font-bold tracking-tight pt-1">
+              Deploy It Yourself in 3 Commands
+            </h2>
+          </div>
+          <a
+            href="/"
+            class="brutal-btn rounded-lg bg-[#FFE600] hover:bg-[#ffed38] px-4 py-2 text-xs sm:text-sm font-mono font-bold"
+          >
+            Launch Live Pitch Arena →
+          </a>
+        </div>
+
+        <div class="space-y-4">
+          <!-- Step 1 -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-xs font-bold uppercase">1. Enable Cloud Run, Cloud Build &amp; Vertex AI APIs</span>
+              <button type="button" data-copy="cmd-1" class="copy-cmd brutal-btn rounded bg-white hover:bg-[#FFE600] px-2.5 py-0.5 text-xs font-mono font-bold">Copy</button>
+            </div>
+            <pre id="cmd-1" class="rounded-lg border-2 border-[#111111] bg-[#18181B] text-emerald-300 p-3 text-xs font-mono overflow-x-auto">gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com aiplatform.googleapis.com</pre>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-xs font-bold uppercase">2. Deploy from Source with WebSocket Tuning &amp; Vertex AI</span>
+              <button type="button" data-copy="cmd-2" class="copy-cmd brutal-btn rounded bg-white hover:bg-[#FFE600] px-2.5 py-0.5 text-xs font-mono font-bold">Copy</button>
+            </div>
+            <pre id="cmd-2" class="rounded-lg border-2 border-[#111111] bg-[#18181B] text-sky-300 p-3 text-xs font-mono overflow-x-auto">gcloud run deploy pitch-arena --source . --region us-central1 --allow-unauthenticated --timeout=3600 --session-affinity --concurrency=500 --set-env-vars="GOOGLE_GENAI_USE_VERTEXAI=true,GOOGLE_CLOUD_PROJECT=$(gcloud config get-value project),GOOGLE_CLOUD_LOCATION=global,GEMINI_MODEL=gemini-3.8-flash"</pre>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-xs font-bold uppercase">3. Optional: Deploy a 2nd AI Persona &amp; Split Traffic 50/50</span>
+              <button type="button" data-copy="cmd-3" class="copy-cmd brutal-btn rounded bg-white hover:bg-[#FFE600] px-2.5 py-0.5 text-xs font-mono font-bold">Copy</button>
+            </div>
+            <pre id="cmd-3" class="rounded-lg border-2 border-[#111111] bg-[#18181B] text-amber-300 p-3 text-xs font-mono overflow-x-auto">gcloud run deploy pitch-arena --source . --region us-central1 --set-env-vars="AI_PERSONA=overly enthusiastic YC optimist mentor" --tag=optimist --no-traffic && gcloud run services update-traffic pitch-arena --region us-central1 --to-revisions=LATEST=50,optimist=50</pre>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Bottom Navigation Bar -->
+  <footer class="border-t-2 border-[#111111] bg-[#FAFAFA]/95 backdrop-blur">
+    <div class="max-w-7xl mx-auto px-4 sm:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-2 text-xs font-mono text-zinc-600">
+        <span>Keys:</span>
+        <kbd class="px-1.5 py-0.5 border border-[#111111] rounded bg-white font-bold text-[#111111]">←</kbd>
+        <kbd class="px-1.5 py-0.5 border border-[#111111] rounded bg-white font-bold text-[#111111]">→</kbd>
+        <kbd class="px-1.5 py-0.5 border border-[#111111] rounded bg-white font-bold text-[#111111]">Space</kbd>
+        <span class="hidden sm:inline">•</span>
+        <kbd class="hidden sm:inline px-1.5 py-0.5 border border-[#111111] rounded bg-white font-bold text-[#111111]">F</kbd>
+        <span class="hidden sm:inline">Fullscreen</span>
+      </div>
+
+      <div class="flex items-center gap-2.5">
+        <button
+          id="fullscreen-btn"
+          type="button"
+          class="brutal-btn rounded-lg bg-white hover:bg-zinc-100 px-3 py-1.5 text-xs font-mono font-bold cursor-pointer"
+          title="Toggle Fullscreen (F)"
+        >
+          Fullscreen
+        </button>
+        <button
+          id="prev-btn"
+          type="button"
+          class="brutal-btn rounded-lg bg-white hover:bg-[#FFE600] px-4 py-1.5 text-xs sm:text-sm font-mono font-bold cursor-pointer"
+        >
+          ← Prev
+        </button>
+        <button
+          id="next-btn"
+          type="button"
+          class="brutal-btn rounded-lg bg-[#FFE600] hover:bg-[#ffed38] px-4 py-1.5 text-xs sm:text-sm font-mono font-bold cursor-pointer"
+        >
+          Next →
+        </button>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      const slides = Array.from(document.querySelectorAll('.slide-panel'));
+      const totalSlides = slides.length;
+      const counterEl = document.getElementById('slide-counter');
+      const sectionPillEl = document.getElementById('section-pill');
+      const progressBarEl = document.getElementById('progress-bar');
+      const prevBtn = document.getElementById('prev-btn');
+      const nextBtn = document.getElementById('next-btn');
+      const fullscreenBtn = document.getElementById('fullscreen-btn');
+
+      let currentIndex = 0;
+
+      function parseHashSlide() {
+        const raw = window.location.hash.replace('#', '').trim();
+        const num = parseInt(raw, 10);
+        if (Number.isFinite(num) && num >= 1 && num <= totalSlides) {
+          return num - 1;
+        }
+        return 0;
+      }
+
+      function formatTwoDigits(n) {
+        return String(n).padStart(2, '0');
+      }
+
+      function renderSlide(index) {
+        currentIndex = Math.max(0, Math.min(totalSlides - 1, index));
+
+        slides.forEach((panel, i) => {
+          if (i === currentIndex) {
+            panel.classList.remove('hidden');
+            panel.classList.add('slide-active');
+          } else {
+            panel.classList.add('hidden');
+            panel.classList.remove('slide-active');
+          }
+        });
+
+        const activeSlide = slides[currentIndex];
+        const sectionTitle = activeSlide.getAttribute('data-section') || '';
+        sectionPillEl.textContent = sectionTitle;
+
+        // Stagger-animate inner boxes, table rows, and code blocks inside the active slide
+        const animTargets = activeSlide.querySelectorAll('.brutal-box, tbody tr, pre');
+        animTargets.forEach((el, idx) => {
+          el.classList.remove('stagger-animate');
+          void el.offsetWidth;
+          el.style.animationDelay = `${Math.min(idx * 55, 330)}ms`;
+          el.classList.add('stagger-animate');
+        });
+
+        counterEl.textContent = `${formatTwoDigits(currentIndex + 1)} / ${formatTwoDigits(totalSlides)}`;
+        const pct = ((currentIndex + 1) / totalSlides) * 100;
+        progressBarEl.style.width = `${pct.toFixed(2)}%`;
+
+        prevBtn.disabled = currentIndex === 0;
+        nextBtn.disabled = currentIndex === totalSlides - 1;
+
+        history.replaceState(null, '', `#${currentIndex + 1}`);
+      }
+
+      function nextSlide() {
+        if (currentIndex < totalSlides - 1) {
+          renderSlide(currentIndex + 1);
+        }
+      }
+
+      function prevSlide() {
+        if (currentIndex > 0) {
+          renderSlide(currentIndex - 1);
+        }
+      }
+
+      function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen?.().catch(() => {});
+        } else {
+          document.exitFullscreen?.().catch(() => {});
+        }
+      }
+
+      prevBtn.addEventListener('click', prevSlide);
+      nextBtn.addEventListener('click', nextSlide);
+      fullscreenBtn.addEventListener('click', toggleFullscreen);
+
+      window.addEventListener('keydown', (event) => {
+        if (event.target && ['INPUT', 'TEXTAREA'].includes(event.target.tagName)) {
+          return;
+        }
+        if (event.key === 'ArrowRight' || event.key === ' ' || event.key === 'PageDown') {
+          event.preventDefault();
+          nextSlide();
+        } else if (event.key === 'ArrowLeft' || event.key === 'PageUp') {
+          event.preventDefault();
+          prevSlide();
+        } else if (event.key === 'Home') {
+          event.preventDefault();
+          renderSlide(0);
+        } else if (event.key === 'End') {
+          event.preventDefault();
+          renderSlide(totalSlides - 1);
+        } else if (event.key === 'f' || event.key === 'F') {
+          if (!event.ctrlKey && !event.metaKey && !event.altKey) {
+            event.preventDefault();
+            toggleFullscreen();
+          }
+        }
+      });
+
+      window.addEventListener('hashchange', () => {
+        renderSlide(parseHashSlide());
+      });
+
+      document.querySelectorAll('.copy-cmd').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const targetId = btn.getAttribute('data-copy');
+          const pre = targetId ? document.getElementById(targetId) : null;
+          if (!pre) return;
+          try {
+            await navigator.clipboard.writeText(pre.textContent || '');
+            const original = btn.textContent;
+            btn.textContent = 'Copied!';
+            setTimeout(() => {
+              btn.textContent = original;
+            }, 1400);
+          } catch {
+            // Ignore clipboard errors
+          }
+        });
+      });
+
+      document.querySelectorAll('.split-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const pctA = parseInt(btn.getAttribute('data-split') || '50', 10);
+          const pctB = 100 - pctA;
+          const barA = document.getElementById('split-bar-a');
+          const barB = document.getElementById('split-bar-b');
+          const labelA = document.getElementById('split-label-a');
+          const labelB = document.getElementById('split-label-b');
+          if (barA && barB && labelA && labelB) {
+            barA.style.width = `${pctA}%`;
+            barB.style.width = `${pctB}%`;
+            labelA.textContent = `${pctA}% Traffic`;
+            labelB.textContent = `${pctB}% Traffic`;
+          }
+          document.querySelectorAll('.split-btn').forEach((other) => {
+            other.classList.toggle('bg-[#FFE600]', other === btn);
+            other.classList.toggle('bg-zinc-100', other !== btn);
+          });
+        });
+      });
+
+      renderSlide(parseHashSlide());
+    })();
+  </script>
+</body>
+</html>

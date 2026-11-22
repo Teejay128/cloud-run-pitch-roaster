@@ -390,6 +390,10 @@ app.use((err, req, res, next) => {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
+app.get(['/slide', '/slides'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'slide.html'));
+});
+
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
 
