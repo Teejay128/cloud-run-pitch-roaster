@@ -500,14 +500,32 @@ app.get('/health', (req, res) => {
   });
 });
 
-app.get('/api/pitches', (req, res) => {
-  res.json({
-    revision: K_REVISION,
-    pitches: getPitchesWithRandomizedComments(),
-  });
-});
+function handleListPitches(req, res) {
+  let result = getPitchesWithRandomizedComments();
 
-app.post('/api/pitch', async (req, res) => {
+  if (typeof req.query.author === 'string' && req.query.author.trim()) {
+    const authorFilter = req.query.author.trim().toLowerCase();
+    result = result.filter((p) => p.author.toLowerCase() === authorFilter);
+  }
+
+  if (req.query.limit !== undefined) {
+    const parsedLimit = parseInt(String(req.query.limit), 10);
+    if (Number.isFinite(parsedLimit) && parsedLimit > 0) {
+      result = result.slice(0, Math.min(MAX_PITCHES, parsedLimit));
+    }
+  }
+
+  res.json({
+    count: result.length,
+    revision: K_REVISION,
+    pitches: result,
+  });
+}
+
+app.get('/api/pitches', handleListPitches);
+app.get('/api/pitch', handleListPitches);
+
+async function handleCreatePitch(req, res) {
   const { author, pitch, source } = req.body || {};
 
   try {
@@ -520,7 +538,10 @@ app.post('/api/pitch', async (req, res) => {
     console.error('[POST /api/pitch] Unexpected error:', err);
     return res.status(500).json({ error: 'Failed to process pitch.' });
   }
-});
+}
+
+app.post('/api/pitch', handleCreatePitch);
+app.post('/api/pitches', handleCreatePitch);
 
 function handleCreateComment(req, res) {
   const { id } = req.params;
@@ -570,6 +591,23 @@ function extractTelegramHandle(fromUser) {
   return cleaned || 'tg_builder';
 }
 
+/**
+ * Resolve the public base URL of the service from the incoming request headers.
+ * @param {import('express').Request} req
+ * @returns {string}
+ */
+function getPublicSiteUrl(req) {
+  const configured = (process.env.PUBLIC_URL || '').trim();
+  if (configured) {
+    return configured.replace(/\/+$/, '');
+  }
+  const rawProto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+  const proto = String(rawProto).split(',')[0].trim();
+  const rawHost = req.headers['x-forwarded-host'] || req.headers.host || '';
+  const host = String(rawHost).split(',')[0].trim();
+  return host ? `${proto}://${host}` : '';
+}
+
 app.post('/api/webhook/bot', async (req, res) => {
   const update = req.body || {};
   const tgMessage = update.message || update.edited_message;
@@ -582,6 +620,10 @@ app.post('/api/webhook/bot', async (req, res) => {
 
   const chatId = tgMessage.chat.id;
   const rawText = typeof tgMessage.text === 'string' ? tgMessage.text.trim() : '';
+  const siteUrl = getPublicSiteUrl(req);
+  const sitePrompt = siteUrl
+    ? `🌐 Head over to the site to view other pitches and roast ideas:\n${siteUrl}`
+    : '🌐 Head over to the Pitch Arena site to view other pitches and roast ideas!';
 
   // Acknowledge non-text Telegram updates (stickers, photos, etc.) with 200 so Telegram doesn't retry.
   if (!rawText) {
@@ -593,7 +635,13 @@ app.post('/api/webhook/bot', async (req, res) => {
     return res.status(200).json({
       method: 'sendMessage',
       chat_id: chatId,
-      text: '⚡ Welcome to Pitch Arena!\n\nSend your one-line startup pitch (max 280 characters) and I will roast it with AI and broadcast it live to the Arena forum.',
+      text: [
+        '⚡ Welcome to Pitch Arena!',
+        '',
+        'Send your one-line startup pitch (max 280 characters) and I will roast it with AI and broadcast it live to the Arena forum.',
+        '',
+        sitePrompt,
+      ].join('\n'),
     });
   }
 
@@ -613,6 +661,8 @@ app.post('/api/webhook/bot', async (req, res) => {
       `Category: ${entry.evaluation.category}`,
       '',
       entry.evaluation.roast,
+      '',
+      sitePrompt,
     ].join('\n');
 
     return res.status(200).json({

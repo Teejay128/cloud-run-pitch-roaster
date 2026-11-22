@@ -127,21 +127,24 @@ gcloud run services update-traffic pitch-arena \
 | Endpoint | Method / Protocol | Description |
 | --- | --- | --- |
 | `/health` | `GET` | Health check returning `{ status, revision, activeSockets, aiMode }` |
-| `/api/pitches` | `GET` | Returns `{ revision, pitches }` (most recent 30 pitches, newest first, with community comments shuffled) |
-| `/api/pitch` | `POST` | Evaluates `{ author, pitch, source? }` (handle required), broadcasts `NEW_PITCH`, returns `201` JSON |
+| `/api/pitches` | `GET` | Fetches the list of pitches `{ count, revision, pitches }` (supports optional `?limit=` and `?author=`) |
+| `/api/pitches` (or `/api/pitch`) | `POST` | Writes a new pitch `{ author, pitch, source? }`, evaluates with Gemini, broadcasts `NEW_PITCH`, returns `201` JSON |
 | `/api/pitches/:id/comments` | `POST` | Adds a community roast comment `{ author, text }` under the pinned AI roast, broadcasts `NEW_COMMENT`, returns `201` JSON |
-| `/api/webhook/bot` | `POST` | Native Telegram Bot webhook (`Update` payload), broadcasts `NEW_PITCH` as `source: "bot"`, replies in Telegram via `sendMessage` |
+| `/api/webhook/bot` | `POST` | Native Telegram Bot webhook (`Update` payload), broadcasts `NEW_PITCH` as `source: "bot"`, replies in Telegram with roast + site link |
 | `/ws` | `WebSocket` | Sends `INIT` on connect, broadcasts `PRESENCE`, `NEW_PITCH`, & `NEW_COMMENT`, runs 30s ping/pong heartbeat |
 
-### Test REST Ingestion & Attach a Telegram Bot
+### Test REST Read/Write & Attach a Telegram Bot
 
 ```bash
 SERVICE_URL="https://YOUR-SERVICE-URL.a.run.app"
 
-# 1. Direct REST pitch submission
-curl -X POST "$SERVICE_URL/api/pitch" \
+# 1a. Write a pitch via REST
+curl -X POST "$SERVICE_URL/api/pitches" \
   -H "Content-Type: application/json" \
   -d '{"author":"cloudshell_hacker","pitch":"AI agent that negotiates your rent while you sleep","source":"curl"}'
+
+# 1b. Fetch the list of pitches
+curl "$SERVICE_URL/api/pitches"
 
 # 2. Register your Telegram @BotFather token with the webhook
 curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook?url=$SERVICE_URL/api/webhook/bot"

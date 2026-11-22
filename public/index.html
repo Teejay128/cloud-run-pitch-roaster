@@ -291,14 +291,14 @@
 
       <div id="proof-drawer-body" class="hidden border-t-2 border-[#111111] bg-zinc-50 p-5 space-y-5">
         <p class="text-sm text-zinc-700">
-          Run either command from Cloud Shell, your terminal, or Postman. One container ingests REST &amp; bot payloads, evaluates via Gemini, and fans out over <code class="font-mono font-bold">/ws</code> in real time.
+          Use the mini REST API below to write a pitch or fetch the list of pitches from your terminal/Postman, or attach a Telegram bot webhook.
         </p>
 
-        <!-- Snippet 1: POST /api/pitch -->
+        <!-- Snippet 1A: Write a Pitch (POST /api/pitches) -->
         <div class="space-y-2">
           <div class="flex items-center justify-between gap-2">
             <span class="text-xs font-mono font-bold uppercase tracking-wider text-zinc-700">
-              1. Direct REST Client (POST /api/pitch)
+              1a. REST API — Write a Pitch (POST /api/pitches)
             </span>
             <button
               type="button"
@@ -311,6 +311,26 @@
           <pre
             id="curl-api-code"
             class="overflow-x-auto rounded-lg border-2 border-[#111111] bg-[#18181B] p-3.5 text-xs font-mono text-emerald-300 leading-relaxed"
+          ></pre>
+        </div>
+
+        <!-- Snippet 1B: Fetch List of Pitches (GET /api/pitches) -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs font-mono font-bold uppercase tracking-wider text-zinc-700">
+              1b. REST API — Fetch List of Pitches (GET /api/pitches)
+            </span>
+            <button
+              type="button"
+              data-copy-target="curl-get-pitches-code"
+              class="copy-btn brutal-btn-sm rounded-md bg-white hover:bg-[#FFE600] px-3 py-1 text-xs font-mono font-bold cursor-pointer"
+            >
+              Copy
+            </button>
+          </div>
+          <pre
+            id="curl-get-pitches-code"
+            class="overflow-x-auto rounded-lg border-2 border-[#111111] bg-[#18181B] p-3.5 text-xs font-mono text-amber-300 leading-relaxed"
           ></pre>
         </div>
 
@@ -389,6 +409,7 @@
       const drawerBody = document.getElementById('proof-drawer-body');
       const drawerChevron = document.getElementById('drawer-chevron');
       const curlApiCode = document.getElementById('curl-api-code');
+      const curlGetPitchesCode = document.getElementById('curl-get-pitches-code');
       const curlBotCode = document.getElementById('curl-bot-code');
 
       const feedList = document.getElementById('feed-list');
@@ -476,9 +497,12 @@
       function populateCurlExamples() {
         const origin = window.location.origin;
         curlApiCode.textContent =
-          `curl -X POST ${origin}/api/pitch \\\n` +
+          `curl -X POST ${origin}/api/pitches \\\n` +
           `  -H "Content-Type: application/json" \\\n` +
           `  -d '{"author":"cloudshell_hacker","pitch":"AI agent that negotiates your rent while you sleep","source":"curl"}'`;
+
+        curlGetPitchesCode.textContent =
+          `curl ${origin}/api/pitches`;
 
         curlBotCode.textContent =
           `curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook?url=${origin}/api/webhook/bot"`;
