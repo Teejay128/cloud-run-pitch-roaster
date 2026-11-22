@@ -1,0 +1,19 @@
+{
+  "name": "pitch-arena",
+  "version": "1.0.0",
+  "description": "Live AI Pitch & Roast Arena - decoupled Node.js REST, WebSocket, and Gemini API service for Google Cloud Run",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@google/genai": "^3.6.1",
+    "express": "^5.3.0",
+    "ws": "^8.23.0"
+  }
+}

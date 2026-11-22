@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pitch Arena API — Live AI Pitch &amp; Roast Forum</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Space+Grotesk:wght@500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Space Grotesk"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    :root {
+      --ink: #111111;
+      --canvas: #fafafa;
+    }
+
+    body {
+      background-color: var(--canvas);
+      color: var(--ink);
+      background-image: radial-gradient(#d4d4d8 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+
+    .brutal-card {
+      background-color: #ffffff;
+      border: 2px solid var(--ink);
+      box-shadow: 4px 4px 0 0 var(--ink);
+    }
+
+    .brutal-pill {
+      border: 2px solid var(--ink);
+      box-shadow: 2px 2px 0 0 var(--ink);
+    }
+
+    .brutal-btn {
+      border: 2px solid var(--ink);
+      box-shadow: 4px 4px 0 0 var(--ink);
+      transition: transform 90ms ease, box-shadow 90ms ease, background-color 120ms ease;
+    }
+
+    .brutal-btn:hover:not(:disabled) {
+      transform: translate(-1px, -1px);
+      box-shadow: 5px 5px 0 0 var(--ink);
+    }
+
+    .brutal-btn:active:not(:disabled) {
+      transform: translate(3px, 3px);
+      box-shadow: 1px 1px 0 0 var(--ink);
+    }
+
+    .brutal-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .brutal-btn-sm {
+      border: 2px solid var(--ink);
+      box-shadow: 2px 2px 0 0 var(--ink);
+      transition: transform 90ms ease, box-shadow 90ms ease, background-color 120ms ease;
+    }
+
+    .brutal-btn-sm:active:not(:disabled) {
+      transform: translate(2px, 2px);
+      box-shadow: 0 0 0 0 var(--ink);
+    }
+
+    .brutal-btn-sm:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .brutal-input {
+      border: 2px solid var(--ink);
+      background-color: #ffffff;
+      transition: box-shadow 120ms ease;
+    }
+
+    .brutal-input:focus {
+      outline: none;
+      box-shadow: 3px 3px 0 0 var(--ink);
+    }
+
+    .brutal-input:disabled {
+      background-color: #f4f4f5;
+      color: #71717a;
+      border-color: #a1a1aa;
+      cursor: not-allowed;
+    }
+
+    @keyframes pitchSlideIn {
+      0% {
+        opacity: 0;
+        transform: translateY(-10px) scale(0.99);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .pitch-enter {
+      animation: pitchSlideIn 260ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+  </style>
+</head>
+<body class="min-h-screen antialiased selection:bg-[#FFE600] selection:text-[#111111]">
+  <!-- Top Status Bar -->
+  <header class="sticky top-0 z-30 bg-[#FAFAFA]/95 backdrop-blur border-b-2 border-[#111111]">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 bg-[#FFE600] border-2 border-[#111111] shadow-[2px_2px_0_#111111] flex items-center justify-center font-mono font-bold text-base">
+          ⚡
+        </div>
+        <div>
+          <h1 class="text-lg sm:text-xl font-bold tracking-tight leading-none">
+            Pitch Arena API
+          </h1>
+          <p class="text-xs font-mono text-zinc-600 mt-1">
+            Live AI Startup Roast Forum • Cloud Run
+          </p>
+        </div>
+      </div>
+
+      <!-- Live Builders Online Counter -->
+      <span
+        class="brutal-pill inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white text-xs font-mono font-bold text-[#111111]"
+        title="Builders currently online"
+      >
+        <svg class="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path d="M7 8a3 3 0 100-6 3 3 0 000 6zM14.5 9a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM1.615 16.428a1.224 1.224 0 01-.569-1.175 6.002 6.002 0 0111.908 0c.058.467-.172.92-.57 1.174A9.953 9.953 0 017 18a9.953 9.953 0 01-5.385-1.572zM14.5 16h-.106c.07-.297.088-.611.048-.933a7.47 7.47 0 00-1.588-3.755 4.502 4.502 0 015.874 2.636.818.818 0 01-.36.98A7.465 7.465 0 0114.5 16z" />
+        </svg>
+        <span id="audience-count">0</span>
+      </span>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+    <!-- Pitch Submission Card (Collapsible) -->
+    <section id="pitch-submit-section" class="brutal-card rounded-xl overflow-hidden">
+      <button
+        id="pitch-card-toggle"
+        type="button"
+        aria-expanded="true"
+        aria-controls="pitch-card-body"
+        class="w-full px-5 py-4 flex items-center justify-between gap-3 text-left bg-white hover:bg-zinc-50 transition-colors cursor-pointer"
+      >
+        <h2 class="text-lg font-bold tracking-tight">Pitch your startup idea</h2>
+        <svg
+          id="pitch-card-chevron"
+          class="w-5 h-5 shrink-0 transition-transform duration-200 rotate-180"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <path
+            fill-rule="evenodd"
+            d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+            clip-rule="evenodd"
+          />
+        </svg>
+      </button>
+
+      <div id="pitch-card-body" class="border-t-2 border-[#111111] p-5 sm:p-6 bg-white">
+        <form id="pitch-form" class="space-y-4" novalidate>
+          <!-- Handle field: Label above input with extra details -->
+          <div>
+            <div class="flex flex-wrap items-baseline justify-between gap-2 mb-1.5">
+              <label
+                for="author-input"
+                class="text-xs font-mono font-bold uppercase tracking-wider"
+              >
+                Handle
+              </label>
+              <span class="text-xs font-mono text-zinc-500">
+                letters, numbers, _ or -
+              </span>
+            </div>
+            <input
+              id="author-input"
+              name="author"
+              type="text"
+              maxlength="20"
+              pattern="^[A-Za-z0-9_-]+$"
+              required
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="e.g. ada_builds"
+              class="brutal-input w-full rounded-lg px-3.5 py-2.5 text-sm font-mono font-medium placeholder:text-zinc-400"
+            />
+          </div>
+
+          <!-- Pitch field: Label above textarea with one-liner detail and character limit -->
+          <div>
+            <div class="flex flex-wrap items-baseline justify-between gap-2 mb-1.5">
+              <div class="flex items-baseline gap-2">
+                <label
+                  for="pitch-input"
+                  class="text-xs font-mono font-bold uppercase tracking-wider"
+                >
+                  Pitch
+                </label>
+                <span class="text-xs font-mono text-zinc-500">
+                  one-liner
+                </span>
+              </div>
+              <span id="char-counter" class="text-xs font-mono font-bold text-zinc-500">
+                0 / 280
+              </span>
+            </div>
+            <textarea
+              id="pitch-input"
+              name="pitch"
+              rows="3"
+              maxlength="280"
+              required
+              placeholder="e.g. Uber for stray cats powered by blockchain thermal cameras"
+              class="brutal-input w-full rounded-lg px-3.5 py-2.5 text-sm sm:text-base font-medium placeholder:text-zinc-400 resize-none"
+            ></textarea>
+          </div>
+
+          <div
+            id="form-error"
+            role="alert"
+            class="hidden rounded-lg border-2 border-[#111111] bg-rose-100 px-3.5 py-2 text-sm font-medium text-rose-950"
+          ></div>
+
+          <!-- Bottom bar: Single note on the left, Submit button on the far right -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+            <p id="pitch-footer-note" class="text-xs font-mono text-zinc-600">
+              Submitting a pitch is required to start commenting on other people's pitches.
+            </p>
+            <button
+              id="submit-btn"
+              type="submit"
+              class="brutal-btn shrink-0 self-end sm:self-auto inline-flex items-center justify-center gap-2 rounded-lg bg-[#FFE600] hover:bg-[#ffed38] px-5 py-2.5 text-sm font-bold text-[#111111] cursor-pointer"
+            >
+              <span id="submit-btn-label">Submit</span>
+              <span aria-hidden="true">→</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- Multi-Client Proof Drawer (Collapsible) -->
+    <section class="brutal-card rounded-xl overflow-hidden">
+      <button
+        id="drawer-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="proof-drawer-body"
+        class="w-full px-5 py-4 flex items-center justify-between text-left bg-white hover:bg-zinc-50 transition-colors cursor-pointer"
+      >
+        <div class="flex flex-wrap items-center gap-2.5">
+          <span class="px-2 py-0.5 text-xs font-mono font-bold bg-[#A7F3D0] border-2 border-[#111111] rounded">
+            MULTI-CLIENT PROOF
+          </span>
+          <span class="font-bold text-sm sm:text-base">
+            Test Live API Ingestion via curl or Bot Webhook
+          </span>
+        </div>
+        <svg
+          id="drawer-chevron"
+          class="w-5 h-5 shrink-0 transition-transform duration-200"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <path
+            fill-rule="evenodd"
+            d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+            clip-rule="evenodd"
+          />
+        </svg>
+      </button>
+
+      <div id="proof-drawer-body" class="hidden border-t-2 border-[#111111] bg-zinc-50 p-5 space-y-5">
+        <p class="text-sm text-zinc-700">
+          Run either command from Cloud Shell, your terminal, or Postman. One container ingests REST &amp; bot payloads, evaluates via Gemini, and fans out over <code class="font-mono font-bold">/ws</code> in real time.
+        </p>
+
+        <!-- Snippet 1: POST /api/pitch -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs font-mono font-bold uppercase tracking-wider text-zinc-700">
+              1. Direct REST Client (POST /api/pitch)
+            </span>
+            <button
+              type="button"
+              data-copy-target="curl-api-code"
+              class="copy-btn brutal-btn-sm rounded-md bg-white hover:bg-[#FFE600] px-3 py-1 text-xs font-mono font-bold cursor-pointer"
+            >
+              Copy
+            </button>
+          </div>
+          <pre
+            id="curl-api-code"
+            class="overflow-x-auto rounded-lg border-2 border-[#111111] bg-[#18181B] p-3.5 text-xs font-mono text-emerald-300 leading-relaxed"
+          ></pre>
+        </div>
+
+        <!-- Snippet 2: POST /api/webhook/bot -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs font-mono font-bold uppercase tracking-wider text-zinc-700">
+              2. Messaging Bot Webhook (POST /api/webhook/bot)
+            </span>
+            <button
+              type="button"
+              data-copy-target="curl-bot-code"
+              class="copy-btn brutal-btn-sm rounded-md bg-white hover:bg-[#FFE600] px-3 py-1 text-xs font-mono font-bold cursor-pointer"
+            >
+              Copy
+            </button>
+          </div>
+          <pre
+            id="curl-bot-code"
+            class="overflow-x-auto rounded-lg border-2 border-[#111111] bg-[#18181B] p-3.5 text-xs font-mono text-sky-300 leading-relaxed"
+          ></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- Live Real-Time Feed -->
+    <section class="space-y-4">
+      <div class="flex items-center gap-2.5">
+        <h2 class="text-lg font-bold tracking-tight">Live Roast Forum Feed</h2>
+        <span
+          id="pitch-count-badge"
+          class="font-mono text-xs font-bold px-2 py-0.5 rounded-full bg-white border-2 border-[#111111]"
+        >
+          0
+        </span>
+      </div>
+
+      <div
+        id="empty-state"
+        class="brutal-card rounded-xl p-8 text-center space-y-2"
+      >
+        <p class="font-bold text-base">Arena is quiet so far.</p>
+        <p class="text-sm text-zinc-600">
+          Submit the first pitch above or fire a <code class="font-mono font-bold">curl</code> request from the proof drawer to kick off the roast threads.
+        </p>
+      </div>
+
+      <div id="feed-list" class="space-y-5" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      const MAX_PITCHES = 30;
+      const MAX_CHARS = 280;
+      const MAX_HANDLE_CHARS = 20;
+      const STORAGE_HANDLE_KEY = 'pitch_arena_handle';
+      const STORAGE_PITCH_KEY = 'pitch_arena_pitch';
+      const HANDLE_REGEX = /^[A-Za-z0-9_-]{1,20}$/;
+
+      const audienceCountEl = document.getElementById('audience-count');
+
+      const pitchCardToggle = document.getElementById('pitch-card-toggle');
+      const pitchCardBody = document.getElementById('pitch-card-body');
+      const pitchCardChevron = document.getElementById('pitch-card-chevron');
+      const pitchForm = document.getElementById('pitch-form');
+      const authorInput = document.getElementById('author-input');
+      const pitchInput = document.getElementById('pitch-input');
+      const charCounter = document.getElementById('char-counter');
+      const formError = document.getElementById('form-error');
+      const pitchFooterNote = document.getElementById('pitch-footer-note');
+      const submitBtn = document.getElementById('submit-btn');
+      const submitBtnLabel = document.getElementById('submit-btn-label');
+
+      const drawerToggle = document.getElementById('drawer-toggle');
+      const drawerBody = document.getElementById('proof-drawer-body');
+      const drawerChevron = document.getElementById('drawer-chevron');
+      const curlApiCode = document.getElementById('curl-api-code');
+      const curlBotCode = document.getElementById('curl-bot-code');
+
+      const feedList = document.getElementById('feed-list');
+      const emptyState = document.getElementById('empty-state');
+      const pitchCountBadge = document.getElementById('pitch-count-badge');
+
+      /** Tracks rendered pitch IDs to prevent duplicate cards across REST + WS. */
+      const renderedIds = new Set();
+      /** Map of pitchId -> Set<commentId> to deduplicate incoming comments. */
+      const renderedCommentsByPitch = new Map();
+
+      let socket = null;
+      let reconnectAttempt = 0;
+      let reconnectTimer = null;
+
+      function getSavedHandle() {
+        try {
+          const raw = (localStorage.getItem(STORAGE_HANDLE_KEY) || '').trim();
+          return HANDLE_REGEX.test(raw) ? raw : '';
+        } catch {
+          return '';
+        }
+      }
+
+      function saveUserSubmission(handle, pitch) {
+        const cleanHandle = String(handle || '').trim();
+        if (!HANDLE_REGEX.test(cleanHandle)) return;
+        try {
+          localStorage.setItem(STORAGE_HANDLE_KEY, cleanHandle);
+          if (pitch) {
+            localStorage.setItem(STORAGE_PITCH_KEY, String(pitch).trim());
+          }
+        } catch {
+          // Ignore storage quota / private mode failures
+        }
+        syncHandleUI();
+      }
+
+      function syncHandleUI() {
+        const savedHandle = getSavedHandle();
+        if (savedHandle) {
+          authorInput.value = savedHandle;
+          try {
+            const savedPitch = localStorage.getItem(STORAGE_PITCH_KEY);
+            if (savedPitch && !pitchInput.value.trim()) {
+              pitchInput.value = savedPitch;
+              updateCharCounter();
+            }
+          } catch {
+            // Ignore storage errors
+          }
+          authorInput.disabled = true;
+          pitchInput.disabled = true;
+          submitBtn.disabled = true;
+          pitchFooterNote.textContent =
+            "Idea Pitched. You can now comment on other people's pitches.";
+        } else {
+          authorInput.disabled = false;
+          pitchInput.disabled = false;
+          submitBtn.disabled = false;
+          pitchFooterNote.textContent =
+            "Submitting a pitch is required to start commenting on other people's pitches.";
+        }
+
+        // Update all rendered pitch cards' comment composer state
+        document.querySelectorAll('[data-comment-composer]').forEach((container) => {
+          const pitchId = container.getAttribute('data-comment-composer');
+          if (pitchId) {
+            renderCommentComposer(container, pitchId);
+          }
+        });
+      }
+
+      function shuffleComments(comments) {
+        const copy = Array.isArray(comments) ? [...comments] : [];
+        for (let i = copy.length - 1; i > 0; i -= 1) {
+          const j = Math.floor(Math.random() * (i + 1));
+          const temp = copy[i];
+          copy[i] = copy[j];
+          copy[j] = temp;
+        }
+        return copy;
+      }
+
+      function populateCurlExamples() {
+        const origin = window.location.origin;
+        curlApiCode.textContent =
+          `curl -X POST ${origin}/api/pitch \\\n` +
+          `  -H "Content-Type: application/json" \\\n` +
+          `  -d '{"author":"cloudshell_hacker","pitch":"AI agent that negotiates your rent while you sleep","source":"curl"}'`;
+
+        curlBotCode.textContent =
+          `curl -X POST ${origin}/api/webhook/bot \\\n` +
+          `  -H "Content-Type: application/json" \\\n` +
+          `  -d '{"sender":"telegram_builder","message":"Kubernetes for backyard chicken coops"}'`;
+      }
+
+      function updateAudienceCount(count) {
+        const safeCount = Number.isFinite(Number(count)) ? Number(count) : 0;
+        audienceCountEl.textContent = String(safeCount);
+      }
+
+      function updateFeedCounters() {
+        const count = feedList.children.length;
+        pitchCountBadge.textContent = String(count);
+        emptyState.classList.toggle('hidden', count > 0);
+      }
+
+      function getSourceBadgeClasses(source) {
+        switch (String(source || 'api').toLowerCase()) {
+          case 'web':
+            return 'bg-sky-200 text-sky-950';
+          case 'bot':
+            return 'bg-emerald-200 text-emerald-950';
+          case 'curl':
+            return 'bg-amber-200 text-amber-950';
+          default:
+            return 'bg-violet-200 text-violet-950';
+        }
+      }
+
+      function formatTime(isoString) {
+        if (!isoString) return 'just now';
+        const date = new Date(isoString);
+        if (Number.isNaN(date.getTime())) return 'just now';
+        return date.toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        });
+      }
+
+      function createCommunityCommentNode(comment, animate) {
+        const item = document.createElement('div');
+        item.dataset.commentId = comment.id;
+        item.className = `pt-2.5 border-t border-zinc-200 space-y-1${animate ? ' pitch-enter' : ''}`;
+
+        const topRow = document.createElement('div');
+        topRow.className = 'flex items-center justify-between gap-2 text-xs font-mono';
+
+        const authorSpan = document.createElement('span');
+        authorSpan.className = 'font-bold text-[#111111]';
+        authorSpan.textContent = comment.author || 'Anonymous Builder';
+
+        const timeSpan = document.createElement('span');
+        timeSpan.className = 'text-zinc-400';
+        timeSpan.textContent = formatTime(comment.createdAt);
+
+        topRow.append(authorSpan, timeSpan);
+
+        const bodyP = document.createElement('p');
+        bodyP.className = 'text-sm text-zinc-700 break-words leading-snug';
+        bodyP.textContent = comment.text || '';
+
+        item.append(topRow, bodyP);
+        return item;
+      }
+
+      function appendCommentToPitchCard(pitchId, comment, { animate = true, prepend = true } = {}) {
+        if (!pitchId || !comment || !comment.id) return;
+        let seenSet = renderedCommentsByPitch.get(pitchId);
+        if (!seenSet) {
+          seenSet = new Set();
+          renderedCommentsByPitch.set(pitchId, seenSet);
+        }
+        if (seenSet.has(comment.id)) {
+          return;
+        }
+
+        const card = feedList.querySelector(`[data-pitch-id="${CSS.escape(pitchId)}"]`);
+        if (!card) return;
+        const listEl = card.querySelector('[data-comments-list]');
+        if (!listEl) return;
+
+        seenSet.add(comment.id);
+        const node = createCommunityCommentNode(comment, animate);
+        if (prepend) {
+          listEl.prepend(node);
+        } else {
+          listEl.append(node);
+        }
+      }
+
+      function renderCommentComposer(container, pitchId) {
+        container.replaceChildren();
+        const savedHandle = getSavedHandle();
+        const isUnlocked = Boolean(savedHandle);
+
+        const form = document.createElement('form');
+        form.className = 'space-y-2';
+        form.noValidate = true;
+
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-2';
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.maxLength = MAX_CHARS;
+        input.required = true;
+        input.disabled = !isUnlocked;
+        input.placeholder = 'Add your roast to this thread...';
+        input.className =
+          'brutal-input flex-1 rounded-lg px-3 py-2 text-sm font-medium placeholder:text-zinc-400';
+
+        const postBtn = document.createElement('button');
+        postBtn.type = 'submit';
+        postBtn.disabled = !isUnlocked;
+        postBtn.className = isUnlocked
+          ? 'brutal-btn-sm shrink-0 rounded-lg bg-[#FFE600] hover:bg-[#ffed38] px-4 py-2 text-xs font-mono font-bold text-[#111111] cursor-pointer'
+          : 'brutal-btn-sm shrink-0 rounded-lg bg-zinc-200 border-zinc-400 text-zinc-500 px-4 py-2 text-xs font-mono font-bold';
+        postBtn.textContent = 'Post Roast';
+
+        row.append(input, postBtn);
+
+        const errEl = document.createElement('p');
+        errEl.className = 'hidden text-xs font-mono font-bold text-rose-600';
+
+        form.append(row, errEl);
+
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          errEl.classList.add('hidden');
+          errEl.textContent = '';
+
+          const currentHandle = getSavedHandle();
+          if (!currentHandle) {
+            syncHandleUI();
+            return;
+          }
+
+          const text = input.value.trim();
+          if (!text) {
+            errEl.textContent = 'Write a roast comment first.';
+            errEl.classList.remove('hidden');
+            input.focus();
+            return;
+          }
+
+          postBtn.disabled = true;
+          postBtn.textContent = 'Posting...';
+
+          try {
+            const res = await fetch(`/api/pitches/${encodeURIComponent(pitchId)}/comments`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                author: currentHandle,
+                text,
+              }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+              errEl.textContent = data.error || `Failed to post comment (${res.status}).`;
+              errEl.classList.remove('hidden');
+              return;
+            }
+            appendCommentToPitchCard(pitchId, data, { animate: true, prepend: true });
+            input.value = '';
+          } catch {
+            errEl.textContent = 'Network error posting comment.';
+            errEl.classList.remove('hidden');
+          } finally {
+            postBtn.disabled = false;
+            postBtn.textContent = 'Post Roast';
+          }
+        });
+
+        container.append(form);
+      }
+
+      function createPitchCard(entry, animate) {
+        const evalData = entry.evaluation || {};
+        const score = Number.isFinite(Number(evalData.score)) ? Number(evalData.score) : 5;
+        const sourceLabel = String(entry.source || 'api').toUpperCase();
+
+        const card = document.createElement('article');
+        card.dataset.pitchId = entry.id;
+        card.className = `brutal-card rounded-xl p-5 space-y-4${animate ? ' pitch-enter' : ''}`;
+
+        // Header row: author on left, source & category tags on far right
+        const header = document.createElement('div');
+        header.className = 'flex items-center justify-between gap-2';
+
+        const authorEl = document.createElement('span');
+        authorEl.className = 'font-bold text-sm sm:text-base';
+        authorEl.textContent = entry.author || 'Anonymous Builder';
+
+        const tagsRight = document.createElement('div');
+        tagsRight.className = 'flex flex-wrap items-center gap-2';
+
+        const sourceBadge = document.createElement('span');
+        sourceBadge.className = `px-2 py-0.5 text-[11px] font-mono font-bold border-2 border-[#111111] rounded ${getSourceBadgeClasses(entry.source)}`;
+        sourceBadge.textContent = sourceLabel;
+
+        const categoryTag = document.createElement('span');
+        categoryTag.className = 'px-2 py-0.5 text-[11px] font-mono font-bold bg-zinc-100 border border-[#111111] rounded';
+        categoryTag.textContent = evalData.category || 'Tech';
+
+        tagsRight.append(sourceBadge, categoryTag);
+        header.append(authorEl, tagsRight);
+
+        // Pitch text (italic quote vibe)
+        const pitchBody = document.createElement('p');
+        pitchBody.className = 'text-base sm:text-lg font-semibold italic leading-snug text-[#111111] break-words';
+        pitchBody.textContent = `"${entry.pitch || ''}"`;
+
+        // Comments Thread Container (Pinned AI Roast first + randomized community roasts below, no sub-cards)
+        const threadSection = document.createElement('div');
+        threadSection.className = 'border-t-2 border-[#111111] pt-3.5 space-y-3';
+
+        // 1. Pinned AI VC Roast (flat layout, headed by "AI Roast: <score>/10 - <verdict>")
+        const pinnedRoastBlock = document.createElement('div');
+        pinnedRoastBlock.className = 'space-y-1';
+
+        const pinnedTitle = document.createElement('div');
+        pinnedTitle.className = 'text-xs font-mono font-bold text-[#111111]';
+        pinnedTitle.textContent = `AI Roast: ${score}/10 - ${evalData.verdict || 'Evaluated'}`;
+
+        const roastText = document.createElement('p');
+        roastText.className = 'text-sm text-zinc-800 leading-snug break-words';
+        roastText.textContent = evalData.roast || '';
+
+        pinnedRoastBlock.append(pinnedTitle, roastText);
+
+        // 2. Community Roasts List (flat entries under the AI roast)
+        const communityList = document.createElement('div');
+        communityList.dataset.commentsList = 'true';
+        communityList.className = 'space-y-2.5';
+
+        // 3. Comment Composer (unlocked once user submits their own pitch with handle)
+        const composerWrapper = document.createElement('div');
+        composerWrapper.className = 'pt-1';
+        composerWrapper.setAttribute('data-comment-composer', entry.id);
+        renderCommentComposer(composerWrapper, entry.id);
+
+        threadSection.append(pinnedRoastBlock, communityList, composerWrapper);
+
+        card.append(header, pitchBody, threadSection);
+        return card;
+      }
+
+      function addPitchToFeed(entry, { prepend = true, animate = true } = {}) {
+        if (!entry || !entry.id || renderedIds.has(entry.id)) {
+          return;
+        }
+        renderedIds.add(entry.id);
+        renderedCommentsByPitch.set(entry.id, new Set());
+
+        const card = createPitchCard(entry, animate);
+        if (prepend) {
+          feedList.prepend(card);
+        } else {
+          feedList.append(card);
+        }
+
+        // Populate randomized community comments underneath the pinned AI roast
+        const shuffled = shuffleComments(entry.comments);
+        shuffled.forEach((comment) => {
+          appendCommentToPitchCard(entry.id, comment, { animate: false, prepend: false });
+        });
+
+        while (feedList.children.length > MAX_PITCHES) {
+          const removed = feedList.lastElementChild;
+          if (removed && removed.dataset.pitchId) {
+            renderedIds.delete(removed.dataset.pitchId);
+            renderedCommentsByPitch.delete(removed.dataset.pitchId);
+          }
+          if (removed) removed.remove();
+        }
+
+        updateFeedCounters();
+      }
+
+      function hydrateInitialFeed(pitchesList) {
+        feedList.replaceChildren();
+        renderedIds.clear();
+        renderedCommentsByPitch.clear();
+        if (Array.isArray(pitchesList)) {
+          pitchesList.slice(0, MAX_PITCHES).forEach((entry) => {
+            addPitchToFeed(entry, { prepend: false, animate: false });
+          });
+        }
+        updateFeedCounters();
+      }
+
+      function connectWebSocket() {
+        if (reconnectTimer) {
+          clearTimeout(reconnectTimer);
+          reconnectTimer = null;
+        }
+
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
+
+        socket = new WebSocket(wsUrl);
+
+        socket.addEventListener('open', () => {
+          reconnectAttempt = 0;
+        });
+
+        socket.addEventListener('message', (event) => {
+          let message;
+          try {
+            message = JSON.parse(event.data);
+          } catch {
+            return;
+          }
+
+          if (message.type === 'INIT' && message.payload) {
+            updateAudienceCount(message.payload.activeUsers);
+            hydrateInitialFeed(message.payload.pitches);
+          } else if (message.type === 'PRESENCE' && message.payload) {
+            updateAudienceCount(message.payload.activeUsers);
+          } else if (message.type === 'NEW_PITCH' && message.payload) {
+            addPitchToFeed(message.payload, { prepend: true, animate: true });
+          } else if (message.type === 'NEW_COMMENT' && message.payload) {
+            appendCommentToPitchCard(
+              message.payload.pitchId,
+              message.payload.comment,
+              { animate: true, prepend: true },
+            );
+          }
+        });
+
+        socket.addEventListener('close', () => {
+          scheduleReconnect();
+        });
+      }
+
+      function scheduleReconnect() {
+        if (reconnectTimer) return;
+        const delayMs = Math.min(30000, 1000 * Math.pow(2, reconnectAttempt));
+        reconnectAttempt += 1;
+        reconnectTimer = setTimeout(() => {
+          reconnectTimer = null;
+          connectWebSocket();
+        }, delayMs);
+      }
+
+      function showFormError(message) {
+        formError.textContent = message;
+        formError.classList.remove('hidden');
+      }
+
+      function clearFormError() {
+        formError.textContent = '';
+        formError.classList.add('hidden');
+      }
+
+      function updateCharCounter() {
+        const len = pitchInput.value.length;
+        charCounter.textContent = `${len} / ${MAX_CHARS}`;
+        if (len >= MAX_CHARS) {
+          charCounter.className = 'text-xs font-mono font-bold text-rose-600';
+        } else if (len >= 240) {
+          charCounter.className = 'text-xs font-mono font-bold text-amber-600';
+        } else {
+          charCounter.className = 'text-xs font-mono font-bold text-zinc-500';
+        }
+      }
+
+      async function handlePitchSubmit(event) {
+        event.preventDefault();
+        clearFormError();
+
+        if (getSavedHandle()) {
+          return;
+        }
+
+        const author = authorInput.value.trim();
+        const pitch = pitchInput.value.trim();
+
+        if (!author) {
+          showFormError('Handle is required to submit a pitch and unlock commenting.');
+          authorInput.focus();
+          return;
+        }
+        if (author.length > MAX_HANDLE_CHARS) {
+          showFormError(`Handle must be ${MAX_HANDLE_CHARS} characters or fewer.`);
+          authorInput.focus();
+          return;
+        }
+        if (!HANDLE_REGEX.test(author)) {
+          showFormError(
+            'Handle can only contain letters, numbers, underscores (_), and hyphens (-) with no spaces.',
+          );
+          authorInput.focus();
+          return;
+        }
+        if (!pitch) {
+          showFormError('Please enter a startup pitch first.');
+          pitchInput.focus();
+          return;
+        }
+        if (pitch.length > MAX_CHARS) {
+          showFormError(`Pitch must be ${MAX_CHARS} characters or fewer.`);
+          return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtnLabel.textContent = 'Roasting...';
+
+        try {
+          const response = await fetch('/api/pitch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              author,
+              pitch,
+              source: 'web',
+            }),
+          });
+
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            showFormError(data.error || `Submission failed (${response.status}).`);
+            return;
+          }
+
+          // Render immediately if the WebSocket frame hasn't arrived yet; deduplication prevents doubles.
+          addPitchToFeed(data, { prepend: true, animate: true });
+
+          // Lock the pitch form and save the builder's handle & pitch to localStorage
+          saveUserSubmission(data.author || author, pitch);
+        } catch {
+          showFormError('Network error while submitting pitch. Please try again.');
+        } finally {
+          submitBtnLabel.textContent = 'Submit';
+          if (!getSavedHandle()) {
+            submitBtn.disabled = false;
+          }
+        }
+      }
+
+      pitchCardToggle.addEventListener('click', () => {
+        const isOpen = !pitchCardBody.classList.contains('hidden');
+        pitchCardBody.classList.toggle('hidden', isOpen);
+        pitchCardToggle.setAttribute('aria-expanded', String(!isOpen));
+        pitchCardChevron.classList.toggle('rotate-180', !isOpen);
+      });
+
+      drawerToggle.addEventListener('click', () => {
+        const isOpen = !drawerBody.classList.contains('hidden');
+        drawerBody.classList.toggle('hidden', isOpen);
+        drawerToggle.setAttribute('aria-expanded', String(!isOpen));
+        drawerChevron.classList.toggle('rotate-180', !isOpen);
+      });
+
+      document.querySelectorAll('.copy-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const targetId = btn.getAttribute('data-copy-target');
+          const codeEl = targetId ? document.getElementById(targetId) : null;
+          if (!codeEl) return;
+
+          const text = codeEl.textContent || '';
+          try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              await navigator.clipboard.writeText(text);
+            } else {
+              const temp = document.createElement('textarea');
+              temp.value = text;
+              document.body.appendChild(temp);
+              temp.select();
+              document.execCommand('copy');
+              temp.remove();
+            }
+            const original = btn.textContent;
+            btn.textContent = 'Copied!';
+            setTimeout(() => {
+              btn.textContent = original;
+            }, 1500);
+          } catch {
+            btn.textContent = 'Copy failed';
+            setTimeout(() => {
+              btn.textContent = 'Copy';
+            }, 1500);
+          }
+        });
+      });
+
+      authorInput.addEventListener('input', () => {
+        clearFormError();
+        // Strip spaces immediately as the user types
+        const cleaned = authorInput.value.replace(/\s+/g, '');
+        if (cleaned !== authorInput.value) {
+          authorInput.value = cleaned;
+        }
+      });
+
+      pitchInput.addEventListener('input', () => {
+        clearFormError();
+        updateCharCounter();
+      });
+
+      pitchInput.addEventListener('keydown', (event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+          pitchForm.requestSubmit();
+        }
+      });
+
+      pitchForm.addEventListener('submit', handlePitchSubmit);
+
+      populateCurlExamples();
+      syncHandleUI();
+      updateCharCounter();
+      connectWebSocket();
+    })();
+  </script>
+</body>
+</html>
